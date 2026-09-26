@@ -21,6 +21,9 @@ import {
   getAvatarURL,
   sendDiscordLog
 } from "./discord.js";
+import {
+  initDatabase
+} from "./database.js";
 
 const app = express();
 const AVATAR_DIR =
@@ -2828,6 +2831,7 @@ setInterval(
 // =========================
 // START SERVER
 // =========================
+await initDatabase();
 
 app.listen(
   PORT,

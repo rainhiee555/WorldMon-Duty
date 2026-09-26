@@ -1,78 +1,54 @@
-import fs from "node:fs/promises";
-import path from "node:path";
-
-const DATA_DIR = path.join(process.cwd(), "data");
+import { db } from "./database.js";
 
 const locks = new Map();
 
-async function ensureFile(file, fallback) {
-  await fs.mkdir(DATA_DIR, {
-    recursive: true
-  });
-
-  const filePath = path.join(DATA_DIR, file);
-
-  try {
-    await fs.access(filePath);
-  } catch {
-    await fs.writeFile(
-      filePath,
-      JSON.stringify(fallback, null, 2),
-      "utf8"
-    );
-  }
-
-  return filePath;
+function clone(value) {
+  return structuredClone(value);
 }
 
-export async function readJson(file, fallback) {
-  const filePath = await ensureFile(
-    file,
-    fallback
+export async function readJson(
+  file,
+  fallback
+) {
+  const result = await db.query(
+    `
+      SELECT data
+      FROM app_data
+      WHERE name = $1
+    `,
+    [file]
   );
 
-  try {
-    const text = await fs.readFile(
-      filePath,
-      "utf8"
-    );
-
-    return JSON.parse(text);
-  } catch {
-    return structuredClone(fallback);
+  if (result.rows.length === 0) {
+    return clone(fallback);
   }
+
+  return result.rows[0].data;
 }
 
-export async function writeJson(file, data) {
-  const filePath = await ensureFile(
-    file,
-    data
+export async function writeJson(
+  file,
+  data
+) {
+  await db.query(
+    `
+      INSERT INTO app_data (
+        name,
+        data,
+        updated_at
+      )
+      VALUES ($1, $2::jsonb, NOW())
+
+      ON CONFLICT (name)
+      DO UPDATE SET
+        data = EXCLUDED.data,
+        updated_at = NOW()
+    `,
+    [
+      file,
+      JSON.stringify(data)
+    ]
   );
-
-  const previous =
-    locks.get(file) || Promise.resolve();
-
-  const next = previous.then(async () => {
-    const tempPath = `${filePath}.tmp`;
-
-    await fs.writeFile(
-      tempPath,
-      JSON.stringify(data, null, 2),
-      "utf8"
-    );
-
-    await fs.rename(
-      tempPath,
-      filePath
-    );
-  });
-
-  locks.set(
-    file,
-    next.catch(() => {})
-  );
-
-  await next;
 }
 
 export async function updateJson(
@@ -81,42 +57,86 @@ export async function updateJson(
   callback
 ) {
   const previous =
-    locks.get(file) || Promise.resolve();
+    locks.get(file) ||
+    Promise.resolve();
 
   let result;
 
-  const next = previous.then(async () => {
-    const filePath =
-      await ensureFile(file, fallback);
+  const next = previous.then(
+    async () => {
+      const client =
+        await db.connect();
 
-    let data;
+      try {
+        await client.query(
+          "BEGIN"
+        );
 
-    try {
-      data = JSON.parse(
-        await fs.readFile(
-          filePath,
-          "utf8"
-        )
-      );
-    } catch {
-      data = structuredClone(fallback);
+        const query =
+          await client.query(
+            `
+              SELECT data
+              FROM app_data
+              WHERE name = $1
+              FOR UPDATE
+            `,
+            [file]
+          );
+
+        let data;
+
+        if (
+          query.rows.length === 0
+        ) {
+          data = clone(fallback);
+        } else {
+          data =
+            query.rows[0].data;
+        }
+
+        result =
+          await callback(data);
+
+        await client.query(
+          `
+            INSERT INTO app_data (
+              name,
+              data,
+              updated_at
+            )
+            VALUES (
+              $1,
+              $2::jsonb,
+              NOW()
+            )
+
+            ON CONFLICT (name)
+            DO UPDATE SET
+              data = EXCLUDED.data,
+              updated_at = NOW()
+          `,
+          [
+            file,
+            JSON.stringify(data)
+          ]
+        );
+
+        await client.query(
+          "COMMIT"
+        );
+
+      } catch (error) {
+        await client.query(
+          "ROLLBACK"
+        );
+
+        throw error;
+
+      } finally {
+        client.release();
+      }
     }
-
-    result = await callback(data);
-
-    const tempPath = `${filePath}.tmp`;
-
-    await fs.writeFile(
-      tempPath,
-      JSON.stringify(data, null, 2),
-      "utf8"
-    );
-
-    await fs.rename(
-      tempPath,
-      filePath
-    );
-  });
+  );
 
   locks.set(
     file,
