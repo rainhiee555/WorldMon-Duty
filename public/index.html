@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>
+    WorldMon Duty
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="/style.css"
+  >
+</head>
+
+<body>
+
+  <div class="container">
+
+    <header class="header">
+
+      <div>
+        <h1 id="organization">
+          ระบบเข้าเวร
+        </h1>
+
+        <p>
+          WorldMon Duty Management
+        </p>
+      </div>
+
+      <div id="profile"></div>
+
+    </header>
+
+    <main id="app">
+
+      <div class="card center">
+        กำลังโหลด...
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- CONFIRM MODAL -->
+<div id="confirmModal" class="modal-overlay">
+  <div class="confirm-modal">
+
+    <div id="confirmIcon" class="confirm-icon">
+      ✓
+    </div>
+
+    <h2 id="confirmTitle">
+      ยืนยันการทำรายการ
+    </h2>
+
+    <p id="confirmMessage">
+      คุณต้องการดำเนินการต่อหรือไม่?
+    </p>
+
+    <div class="confirm-actions">
+      <button
+        id="confirmCancel"
+        class="modal-btn cancel-btn"
+      >
+        ยกเลิก
+      </button>
+
+      <button
+        id="confirmAccept"
+        class="modal-btn confirm-btn"
+      >
+        ยืนยัน
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script src="/app.js"></script>
+
+</body>
+
+</html>

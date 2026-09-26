@@ -1,0 +1,9 @@
+{
+  "organizationName": "ระบบเข้าเวร",
+  "normalHours": 8,
+  "forceClockOutHours": 16,
+  "autoClockOut": true,
+  "allowOvertime": true,
+  "timezone": "Asia/Bangkok",
+  "maintenanceMode": false
+}
