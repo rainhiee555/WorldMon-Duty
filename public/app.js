@@ -6721,16 +6721,35 @@ async function reviewLeave(
 ) {
 
   const note =
-    prompt(
+  await beautifulPrompt({
+    title:
+      status === "approved"
+        ? "อนุมัติคำขอลางาน"
+        : "ไม่อนุมัติคำขอลางาน",
+
+    message:
       status === "approved"
         ? "หมายเหตุการอนุมัติ (เว้นว่างได้)"
-        : "ระบุเหตุผลที่ไม่อนุมัติ (เว้นว่างได้)"
-    );
+        : "ระบุเหตุผลที่ไม่อนุมัติ (เว้นว่างได้)",
+
+    type:
+      status === "approved"
+        ? "start"
+        : "end",
+
+    confirmText:
+      status === "approved"
+        ? "ยืนยันอนุมัติ"
+        : "ยืนยันไม่อนุมัติ",
+
+    cancelText:
+      "ยกเลิก"
+  });
 
 
-  if (note === null) {
-    return;
-  }
+if (note === null) {
+  return;
+}
 
 
   try {
@@ -6795,6 +6814,117 @@ async function reviewLeave(
     });
 
   }
+}
+function beautifulPrompt({
+  title = "กรอกข้อมูล",
+  message = "",
+  type = "start",
+  confirmText = "ยืนยัน",
+  cancelText = "ยกเลิก"
+}) {
+
+  return new Promise(resolve => {
+
+    const overlay =
+      document.createElement("div");
+
+    overlay.className =
+      "confirm-overlay";
+
+
+    overlay.innerHTML = `
+      <div class="confirm-modal ${esc(type)}">
+
+        <div class="confirm-title">
+          ${esc(title)}
+        </div>
+
+        <div class="confirm-message">
+          ${esc(message)}
+        </div>
+
+        <textarea
+          class="beautiful-prompt-input"
+          rows="4"
+          placeholder="กรอกหมายเหตุ..."
+        ></textarea>
+
+        <div class="confirm-actions">
+
+          <button
+            type="button"
+            class="btn secondary prompt-cancel"
+          >
+            ${esc(cancelText)}
+          </button>
+
+          <button
+            type="button"
+            class="btn prompt-confirm"
+          >
+            ${esc(confirmText)}
+          </button>
+
+        </div>
+
+      </div>
+    `;
+
+
+    document.body.appendChild(
+      overlay
+    );
+
+
+    const input =
+      overlay.querySelector(
+        ".beautiful-prompt-input"
+      );
+
+    const close =
+      value => {
+
+        overlay.remove();
+
+        resolve(value);
+      };
+
+
+    overlay
+      .querySelector(
+        ".prompt-cancel"
+      )
+      .onclick =
+        () => close(null);
+
+
+    overlay
+      .querySelector(
+        ".prompt-confirm"
+      )
+      .onclick =
+        () => close(
+          input.value.trim()
+        );
+
+
+    overlay.onclick =
+      event => {
+
+        if (
+          event.target === overlay
+        ) {
+
+          close(null);
+
+        }
+
+      };
+
+
+    input.focus();
+
+  });
 }
 // =============================
 // SETTINGS
