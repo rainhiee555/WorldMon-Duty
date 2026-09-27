@@ -2814,6 +2814,7 @@ async function autoClockOut() {
     });
   }
 }
+await initDatabase();
 
 autoClockOut()
   .catch(console.error);
@@ -2821,17 +2822,14 @@ autoClockOut()
 setInterval(
   () => {
     autoClockOut()
-      .catch(
-        console.error
-      );
+      .catch(console.error);
   },
   60 * 1000
 );
 
 // =========================
 // START SERVER
-// =========================
-await initDatabase();
+// ========================
 
 app.listen(
   PORT,
