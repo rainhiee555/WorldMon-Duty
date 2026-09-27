@@ -341,6 +341,18 @@ function nav(active) {
         โปรไฟล์
       </button>
 
+      <button
+        class="${
+          active === "leave"
+            ? "active"
+            : ""
+        }"
+        onclick="showLeave()"
+      >
+        ลางาน
+      </button>
+
+      
       ${
         state.user.isAdmin
           ? `
@@ -2932,7 +2944,406 @@ async function resetAvatar() {
   }
 
 }
+// =============================
+// LEAVE REQUESTS
+// =============================
 
+function leaveStatusBadge(status) {
+
+  const map = {
+    pending: ["pending", "⏳ รออนุมัติ"],
+    approved: ["approved", "✓ อนุมัติแล้ว"],
+    rejected: ["rejected", "✕ ไม่อนุมัติ"]
+  };
+
+  const item =
+    map[status] || map.pending;
+
+  return `
+    <span class="leave-status ${item[0]}">
+      ${item[1]}
+    </span>
+  `;
+}
+
+
+function leaveTypeLabel(type) {
+
+  const labels = {
+    sick: "ลาป่วย",
+    personal: "ลากิจ",
+    vacation: "ลาพักร้อน",
+    other: "อื่น ๆ"
+  };
+
+  return labels[type] || type || "-";
+}
+
+
+function leaveDate(value) {
+
+  if (!value) {
+    return "-";
+  }
+
+  const date =
+    new Date(`${value}T00:00:00`);
+
+  return date.toLocaleDateString(
+    "th-TH",
+    {
+      day: "numeric",
+      month: "short",
+      year: "numeric"
+    }
+  );
+}
+
+
+async function showLeave() {
+
+  clearInterval(timer);
+
+  let leaves = [];
+
+  try {
+
+    leaves =
+      await api("/api/leaves");
+
+  } catch (error) {
+
+    alert(error.message);
+
+  }
+
+
+  $("#app").innerHTML = `
+
+    ${nav("leave")}
+
+    <div class="leave-layout">
+
+      <section class="card">
+
+        <div class="card-title-row">
+
+          <div>
+            <h2>ขอลางาน</h2>
+
+            <p class="muted">
+              กรอกรายละเอียดเพื่อส่งให้
+              Head Admin พิจารณา
+            </p>
+          </div>
+
+        </div>
+
+
+        <form
+          class="leave-form"
+          onsubmit="submitLeave(event)"
+        >
+
+          <label class="field">
+
+            ประเภทการลา
+
+            <select
+              id="leaveType"
+              required
+            >
+              <option value="sick">
+                ลาป่วย
+              </option>
+
+              <option value="personal">
+                ลากิจ
+              </option>
+
+              <option value="vacation">
+                ลาพักร้อน
+              </option>
+
+              <option value="other">
+                อื่น ๆ
+              </option>
+            </select>
+
+          </label>
+
+
+          <div class="leave-date-grid">
+
+            <label class="field">
+
+              วันที่เริ่ม
+
+              <input
+                id="leaveStartDate"
+                type="date"
+                required
+              >
+
+            </label>
+
+
+            <label class="field">
+
+              วันที่สิ้นสุด
+
+              <input
+                id="leaveEndDate"
+                type="date"
+                required
+              >
+
+            </label>
+
+          </div>
+
+
+          <label class="field">
+
+            เหตุผล
+
+            <textarea
+              id="leaveReason"
+              rows="5"
+              maxlength="500"
+              placeholder="ระบุเหตุผลการลา..."
+              required
+            ></textarea>
+
+          </label>
+
+
+          <button
+            class="blue"
+            type="submit"
+          >
+            ส่งคำขอลา
+          </button>
+
+        </form>
+
+      </section>
+
+
+      <section class="card">
+
+        <div class="card-title-row">
+
+          <div>
+            <h2>
+              ประวัติการลาของฉัน
+            </h2>
+
+            <p class="muted">
+              ตรวจสอบสถานะคำขอลางานย้อนหลัง
+            </p>
+          </div>
+
+        </div>
+
+
+        <div class="leave-list">
+
+          ${
+            leaves.length
+
+              ? leaves.map(
+                  leave => `
+
+                    <article class="leave-item">
+
+                      <div class="leave-item-top">
+
+                        <strong>
+                          ${
+                            esc(
+                              leaveTypeLabel(
+                                leave.type
+                              )
+                            )
+                          }
+                        </strong>
+
+                        ${
+                          leaveStatusBadge(
+                            leave.status
+                          )
+                        }
+
+                      </div>
+
+
+                      <div class="leave-period">
+
+                        ${
+                          leaveDate(
+                            leave.startDate
+                          )
+                        }
+
+                        –
+
+                        ${
+                          leaveDate(
+                            leave.endDate
+                          )
+                        }
+
+                      </div>
+
+
+                      <p>
+                        ${
+                          esc(
+                            leave.reason
+                          )
+                        }
+                      </p>
+
+
+                      ${
+                        leave.adminNote
+
+                          ? `
+                            <div class="leave-admin-note">
+
+                              <strong>
+                                หมายเหตุจาก Head Admin:
+                              </strong>
+
+                              ${
+                                esc(
+                                  leave.adminNote
+                                )
+                              }
+
+                            </div>
+                          `
+
+                          : ""
+                      }
+
+
+                      <small class="muted">
+
+                        ยื่นเมื่อ
+                        ${
+                          dt(
+                            leave.createdAt
+                          )
+                        }
+
+                      </small>
+
+                    </article>
+
+                  `
+                ).join("")
+
+              : `
+                <div class="leave-empty">
+                  ยังไม่มีประวัติการลา
+                </div>
+              `
+          }
+
+        </div>
+
+      </section>
+
+    </div>
+
+  `;
+
+
+  const today =
+    new Date()
+      .toISOString()
+      .slice(0, 10);
+
+
+  const start =
+    $("#leaveStartDate");
+
+  const end =
+    $("#leaveEndDate");
+
+
+  if (start) {
+    start.min = today;
+  }
+
+  if (end) {
+    end.min = today;
+  }
+}
+
+
+async function submitLeave(event) {
+
+  event.preventDefault();
+
+
+  const startDate =
+    $("#leaveStartDate").value;
+
+  const endDate =
+    $("#leaveEndDate").value;
+
+
+  if (endDate < startDate) {
+
+    alert(
+      "วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม"
+    );
+
+    return;
+  }
+
+
+  try {
+
+    await api(
+      "/api/leaves",
+      {
+        method: "POST",
+
+        body: JSON.stringify({
+          type:
+            $("#leaveType").value,
+
+          startDate,
+
+          endDate,
+
+          reason:
+            $("#leaveReason")
+              .value
+              .trim()
+        })
+      }
+    );
+
+
+    alert(
+      "ส่งคำขอลางานเรียบร้อยแล้ว"
+    );
+
+
+    await showLeave();
+
+
+  } catch (error) {
+
+    alert(error.message);
+
+  }
+}
 
 // =============================
 // HEAD ADMIN
@@ -3015,9 +3426,21 @@ async function showAdmin(
           showAdmin('settings')
         "
       >
+      
         ⚙️ ตั้งค่า
       </button>
-
+      <button
+        class="${
+          tab === "leaves"
+            ? "active"
+            : ""
+        }"
+        onclick="
+          showAdmin('leaves')
+        "
+      >
+        📝 การลางาน
+      </button>
       <button
         class="${
           tab === "audit"
@@ -3065,8 +3488,9 @@ async function showAdmin(
       adminSettings,
 
     audit:
-      adminAudit
-
+      adminAudit,
+    leaves:
+      adminLeaves,
   };
 
   (
@@ -5243,50 +5667,6 @@ async function deleteUser(id) {
 
 }
 
-
-async function deleteUser(id) {
-
-  const confirmed =
-    await beautifulConfirm({
-      title:
-        "ลบบุคลากร",
-
-      message:
-        "ต้องการลบบุคลากรคนนี้หรือไม่? ประวัติเวรจะยังคงอยู่",
-
-      type:
-        "end",
-
-      confirmText:
-        "ลบ"
-    });
-
-  if (!confirmed) {
-    return;
-  }
-
-  try {
-
-    await api(
-      `/api/admin/users/${id}`,
-      {
-        method: "DELETE"
-      }
-    );
-
-    await showAdmin(
-      "users"
-    );
-
-  } catch (error) {
-
-    alert(error.message);
-
-  }
-
-}
-
-
 // =============================
 // SHIFT MANAGEMENT
 // =============================
@@ -5543,7 +5923,302 @@ async function forceEnd(id) {
   }
 
 }
+// =============================
+// ADMIN LEAVE REQUESTS
+// =============================
 
+async function adminLeaves() {
+
+  let leaves = [];
+
+  try {
+
+    leaves =
+      await api(
+        "/api/admin/leaves"
+      );
+
+  } catch (error) {
+
+    $("#adminBody").innerHTML = `
+      <div class="card">
+        ${esc(error.message)}
+      </div>
+    `;
+
+    return;
+  }
+
+
+  $("#adminBody").innerHTML = `
+
+    <div class="card">
+
+      <div class="card-title-row">
+
+        <div>
+
+          <h2>
+            คำขอลางาน
+          </h2>
+
+          <p class="muted">
+            Head Admin สามารถอนุมัติ
+            หรือไม่อนุมัติคำขอลางานได้
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <div class="leave-list">
+
+        ${
+          leaves.length
+
+            ? leaves.map(
+                leave => `
+
+                  <article
+                    class="leave-item admin-leave-item"
+                  >
+
+                    <div
+                      class="leave-item-top"
+                    >
+
+                      <div>
+
+                        <strong>
+                          ${
+                            esc(
+                              leave.displayName ||
+                              leave.username ||
+                              leave.discordId
+                            )
+                          }
+                        </strong>
+
+                        <div class="muted">
+
+                          ${
+                            esc(
+                              leaveTypeLabel(
+                                leave.type
+                              )
+                            )
+                          }
+
+                        </div>
+
+                      </div>
+
+
+                      ${
+                        leaveStatusBadge(
+                          leave.status
+                        )
+                      }
+
+                    </div>
+
+
+                    <div class="leave-period">
+
+                      ${
+                        leaveDate(
+                          leave.startDate
+                        )
+                      }
+
+                      –
+
+                      ${
+                        leaveDate(
+                          leave.endDate
+                        )
+                      }
+
+                    </div>
+
+
+                    <p>
+                      ${
+                        esc(
+                          leave.reason
+                        )
+                      }
+                    </p>
+
+
+                    ${
+                      leave.adminNote
+
+                        ? `
+
+                          <div
+                            class="leave-admin-note"
+                          >
+
+                            <strong>
+                              หมายเหตุ:
+                            </strong>
+
+                            ${
+                              esc(
+                                leave.adminNote
+                              )
+                            }
+
+                          </div>
+
+                        `
+
+                        : ""
+                    }
+
+
+                    ${
+                      leave.status ===
+                      "pending"
+
+                        ? `
+
+                          <div
+                            class="leave-admin-actions"
+                          >
+
+                            <button
+                              class="blue compact"
+                              onclick="
+                                reviewLeave(
+                                  '${esc(leave.id)}',
+                                  'approved'
+                                )
+                              "
+                            >
+                              ✓ อนุมัติ
+                            </button>
+
+
+                            <button
+                              class="red compact"
+                              onclick="
+                                reviewLeave(
+                                  '${esc(leave.id)}',
+                                  'rejected'
+                                )
+                              "
+                            >
+                              ✕ ไม่อนุมัติ
+                            </button>
+
+                          </div>
+
+                        `
+
+                        : `
+
+                          <small class="muted">
+
+                            ดำเนินการเมื่อ
+
+                            ${
+                              dt(
+                                leave.reviewedAt
+                              )
+                            }
+
+                          </small>
+
+                        `
+                    }
+
+                  </article>
+
+                `
+              ).join("")
+
+            : `
+
+              <div class="leave-empty">
+                ยังไม่มีคำขอลางาน
+              </div>
+
+            `
+        }
+
+      </div>
+
+    </div>
+
+  `;
+}
+
+
+// =============================
+// REVIEW LEAVE
+// =============================
+
+async function reviewLeave(
+  id,
+  status
+) {
+
+  const note =
+    prompt(
+
+      status === "approved"
+
+        ? "หมายเหตุการอนุมัติ (เว้นว่างได้)"
+
+        : "ระบุเหตุผลที่ไม่อนุมัติ (เว้นว่างได้)"
+
+    );
+
+
+  if (note === null) {
+    return;
+  }
+
+
+  try {
+
+    await api(
+      `/api/admin/leaves/${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+
+        body: JSON.stringify({
+          status,
+          adminNote:
+            note.trim()
+        })
+      }
+    );
+
+
+    alert(
+      status === "approved"
+        ? "อนุมัติการลาเรียบร้อยแล้ว"
+        : "ไม่อนุมัติการลาเรียบร้อยแล้ว"
+    );
+
+
+    await showAdmin(
+      "leaves"
+    );
+
+
+  } catch (error) {
+
+    alert(
+      error.message
+    );
+
+  }
+}
 
 // =============================
 // SETTINGS

@@ -1857,7 +1857,396 @@ app.delete(
     }
   }
 );
+// =========================
+// LEAVE REQUESTS
+// =========================
 
+// พนักงานดูประวัติการลาของตัวเอง
+app.get(
+  "/api/leaves",
+  requireUser,
+  async (req, res) => {
+
+    const leaves =
+      await readJson(
+        "leaves.json",
+        []
+      );
+
+    const myLeaves =
+      leaves
+        .filter(
+          leave =>
+            String(
+              leave.discordId
+            ) ===
+            String(
+              req.user.discordId
+            )
+        )
+        .sort(
+          (a, b) =>
+            new Date(
+              b.createdAt
+            ) -
+            new Date(
+              a.createdAt
+            )
+        );
+
+    res.json(myLeaves);
+  }
+);
+
+
+// พนักงานส่งคำขอลางาน
+app.post(
+  "/api/leaves",
+  requireUser,
+  async (req, res) => {
+
+    const allowedTypes = [
+      "sick",
+      "personal",
+      "vacation",
+      "other"
+    ];
+
+    const type =
+      String(
+        req.body?.type || ""
+      ).trim();
+
+    const startDate =
+      String(
+        req.body?.startDate || ""
+      ).trim();
+
+    const endDate =
+      String(
+        req.body?.endDate || ""
+      ).trim();
+
+    const reason =
+      String(
+        req.body?.reason || ""
+      )
+        .trim()
+        .slice(0, 500);
+
+
+    if (
+      !allowedTypes.includes(
+        type
+      )
+    ) {
+
+      return res
+        .status(400)
+        .json({
+          error:
+            "ประเภทการลาไม่ถูกต้อง"
+        });
+    }
+
+
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/
+        .test(startDate) ||
+      !/^\d{4}-\d{2}-\d{2}$/
+        .test(endDate)
+    ) {
+
+      return res
+        .status(400)
+        .json({
+          error:
+            "กรุณาระบุวันที่ให้ถูกต้อง"
+        });
+    }
+
+
+    if (
+      endDate < startDate
+    ) {
+
+      return res
+        .status(400)
+        .json({
+          error:
+            "วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม"
+        });
+    }
+
+
+    if (!reason) {
+
+      return res
+        .status(400)
+        .json({
+          error:
+            "กรุณาระบุเหตุผลการลา"
+        });
+    }
+
+
+    let leave;
+
+
+    await updateJson(
+      "leaves.json",
+      [],
+      leaves => {
+
+        leave = {
+
+          id:
+            crypto.randomUUID(),
+
+          discordId:
+            req.user.discordId,
+
+          displayName:
+            req.user.displayName ||
+            req.user.username,
+
+          username:
+            req.user.username,
+
+          type,
+
+          startDate,
+
+          endDate,
+
+          reason,
+
+          status:
+            "pending",
+
+          adminNote:
+            "",
+
+          reviewedBy:
+            null,
+
+          reviewedAt:
+            null,
+
+          createdAt:
+            new Date()
+              .toISOString()
+        };
+
+
+        leaves.unshift(
+          leave
+        );
+      }
+    );
+
+
+    await audit(
+      req.user.discordId,
+      "LEAVE_REQUEST",
+      req.user.discordId,
+      {
+        leaveId:
+          leave.id,
+
+        type,
+
+        startDate,
+
+        endDate
+      }
+    );
+
+
+    res
+      .status(201)
+      .json({
+        ok: true,
+        leave
+      });
+  }
+);
+
+
+// Head Admin ดูคำขอลาทั้งหมด
+app.get(
+  "/api/admin/leaves",
+  requireUser,
+  requireAdmin,
+  async (req, res) => {
+
+    const leaves =
+      await readJson(
+        "leaves.json",
+        []
+      );
+
+
+    const sorted =
+      [...leaves].sort(
+        (a, b) => {
+
+          if (
+            a.status ===
+              "pending" &&
+            b.status !==
+              "pending"
+          ) {
+            return -1;
+          }
+
+
+          if (
+            b.status ===
+              "pending" &&
+            a.status !==
+              "pending"
+          ) {
+            return 1;
+          }
+
+
+          return (
+            new Date(
+              b.createdAt
+            ) -
+            new Date(
+              a.createdAt
+            )
+          );
+        }
+      );
+
+
+    res.json(sorted);
+  }
+);
+
+
+// Head Admin อนุมัติ / ไม่อนุมัติ
+app.patch(
+  "/api/admin/leaves/:id",
+  requireUser,
+  requireAdmin,
+  async (req, res) => {
+
+    const status =
+      String(
+        req.body?.status || ""
+      );
+
+
+    const adminNote =
+      String(
+        req.body?.adminNote || ""
+      )
+        .trim()
+        .slice(0, 500);
+
+
+    if (
+      ![
+        "approved",
+        "rejected"
+      ].includes(status)
+    ) {
+
+      return res
+        .status(400)
+        .json({
+          error:
+            "สถานะไม่ถูกต้อง"
+        });
+    }
+
+
+    let updated;
+
+
+    await updateJson(
+      "leaves.json",
+      [],
+      leaves => {
+
+        const leave =
+          leaves.find(
+            item =>
+              String(
+                item.id
+              ) ===
+              String(
+                req.params.id
+              )
+          );
+
+
+        if (!leave) {
+          return;
+        }
+
+
+        leave.status =
+          status;
+
+        leave.adminNote =
+          adminNote;
+
+        leave.reviewedBy =
+          req.user.discordId;
+
+        leave.reviewedAt =
+          new Date()
+            .toISOString();
+
+
+        updated =
+          structuredClone(
+            leave
+          );
+      }
+    );
+
+
+    if (!updated) {
+
+      return res
+        .status(404)
+        .json({
+          error:
+            "ไม่พบคำขอลางาน"
+        });
+    }
+
+
+    await audit(
+      req.user.discordId,
+
+      status === "approved"
+        ? "LEAVE_APPROVE"
+        : "LEAVE_REJECT",
+
+      updated.discordId,
+
+      {
+        leaveId:
+          updated.id,
+
+        adminNote
+      }
+    );
+
+
+    res.json({
+      ok: true,
+      leave: updated
+    });
+  }
+);
 // =========================
 // ADMIN OVERVIEW
 // =========================
