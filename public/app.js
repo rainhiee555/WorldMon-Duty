@@ -6306,9 +6306,38 @@ function renderAdminLeaves() {
 
                         <div class="leave-admin-person">
 
-                          <div class="leave-admin-avatar">
-                            ${esc(initial)}
-                          </div>
+<div class="leave-admin-avatar">
+
+  ${
+    (
+      leave.profileAvatar ||
+      leave.customAvatar ||
+      leave.avatar
+    )
+
+      ? `
+
+        <img
+          src="${esc(
+            leave.profileAvatar ||
+            leave.customAvatar ||
+            leave.avatar
+          )}"
+          alt="${esc(name)}"
+        >
+
+      `
+
+      : `
+
+        <span>
+          ${esc(initial)}
+        </span>
+
+      `
+  }
+
+</div>
 
 
                           <div class="leave-admin-person-copy">

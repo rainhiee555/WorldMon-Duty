@@ -2186,37 +2186,82 @@ app.get(
         []
       );
 
-
-    const sorted =
-      [...leaves].sort(
-        (a, b) => {
-
-          if (
-            a.status === "pending" &&
-            b.status !== "pending"
-          ) {
-            return -1;
-          }
-
-          if (
-            b.status === "pending" &&
-            a.status !== "pending"
-          ) {
-            return 1;
-          }
-
-          return (
-            new Date(b.createdAt) -
-            new Date(a.createdAt)
-          );
-        }
+    const users =
+      await readJson(
+        "users.json",
+        []
       );
 
 
-    response.json(sorted);
+    const result =
+      leaves.map(leave => {
+
+        const user =
+          users.find(
+            item =>
+              String(item.discordId) ===
+              String(leave.discordId)
+          );
+
+
+        return {
+
+          ...leave,
+
+          displayName:
+            user?.displayName ||
+            leave.displayName ||
+            leave.username,
+
+          username:
+            user?.username ||
+            leave.username,
+
+          profileAvatar:
+            user?.profileAvatar ||
+            null,
+
+          customAvatar:
+            user?.customAvatar ||
+            null,
+
+          avatar:
+            user?.avatar ||
+            null
+        };
+      });
+
+
+    result.sort(
+      (a, b) => {
+
+        if (
+          a.status === "pending" &&
+          b.status !== "pending"
+        ) {
+          return -1;
+        }
+
+        if (
+          a.status !== "pending" &&
+          b.status === "pending"
+        ) {
+          return 1;
+        }
+
+        return (
+          new Date(b.createdAt) -
+          new Date(a.createdAt)
+        );
+      }
+    );
+
+
+    return response.json(
+      result
+    );
   }
 );
-
 
 // -------------------------
 // Head Admin อนุมัติ / ไม่อนุมัติ

@@ -5911,3 +5911,54 @@ hr {
     width: 100%;
   }
 }
+/* =========================================================
+   LEAVE USER AVATAR
+========================================================= */
+
+.leave-admin-avatar {
+  width: 43px;
+  height: 43px;
+
+  flex-shrink: 0;
+
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  border-radius: 50%;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(59, 130, 246, 0.22),
+      rgba(139, 92, 246, 0.14)
+    );
+
+  border:
+    1px solid
+    rgba(96, 165, 250, 0.25);
+}
+
+
+.leave-admin-avatar img {
+  width: 100%;
+  height: 100%;
+
+  display: block;
+
+  object-fit: cover;
+
+  border-radius: 50%;
+}
+
+
+.leave-admin-avatar span {
+  color: #bfdbfe;
+
+  font-size: 16px;
+  font-weight: 750;
+}
