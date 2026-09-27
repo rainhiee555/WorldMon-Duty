@@ -2608,7 +2608,7 @@ app.delete(
 
     try {
 
-      await sendDiscordLog({
+      await sendLeaveDiscordLog({
 
         title:
           "🗑️ ลบคำขอลางาน",
