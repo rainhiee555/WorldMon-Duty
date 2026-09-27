@@ -6828,12 +6828,16 @@ function beautifulPrompt({
     const overlay =
       document.createElement("div");
 
-    overlay.className =
-      "confirm-overlay";
+overlay.className =
+  "modal-overlay show";
 
 
     overlay.innerHTML = `
-      <div class="confirm-modal ${esc(type)}">
+      <div class="confirm-modal ${
+  type === "end"
+    ? "end-mode"
+    : ""
+}">
 
         <div class="confirm-title">
           ${esc(title)}
@@ -6851,17 +6855,17 @@ function beautifulPrompt({
 
         <div class="confirm-actions">
 
-          <button
-            type="button"
-            class="btn secondary prompt-cancel"
-          >
+<button
+  type="button"
+  class="modal-btn cancel-btn prompt-cancel"
+>
             ${esc(cancelText)}
           </button>
 
-          <button
-            type="button"
-            class="btn prompt-confirm"
-          >
+<button
+  type="button"
+  class="modal-btn confirm-btn prompt-confirm"
+>
             ${esc(confirmText)}
           </button>
 
