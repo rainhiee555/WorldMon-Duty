@@ -1858,14 +1858,18 @@ app.delete(
   }
 );
 // =========================
-// LEAVE REQUESTS
+// LEAVE SYSTEM
 // =========================
 
-// พนักงานดูประวัติการลาของตัวเอง
+// -------------------------
+// ดูประวัติการลาของตัวเอง
+// -------------------------
+
 app.get(
   "/api/leaves",
   requireUser,
-  async (req, res) => {
+
+  async (request, response) => {
 
     const leaves =
       await readJson(
@@ -1877,33 +1881,29 @@ app.get(
       leaves
         .filter(
           leave =>
-            String(
-              leave.discordId
-            ) ===
-            String(
-              req.user.discordId
-            )
+            String(leave.discordId) ===
+            String(request.user.discordId)
         )
         .sort(
           (a, b) =>
-            new Date(
-              b.createdAt
-            ) -
-            new Date(
-              a.createdAt
-            )
+            new Date(b.createdAt) -
+            new Date(a.createdAt)
         );
 
-    res.json(myLeaves);
+    response.json(myLeaves);
   }
 );
 
 
-// พนักงานส่งคำขอลางาน
+// -------------------------
+// ส่งคำขอลางาน
+// -------------------------
+
 app.post(
   "/api/leaves",
   requireUser,
-  async (req, res) => {
+
+  async (request, response) => {
 
     const allowedTypes = [
       "sick",
@@ -1914,34 +1914,33 @@ app.post(
 
     const type =
       String(
-        req.body?.type || ""
+        request.body?.type || ""
       ).trim();
 
     const startDate =
       String(
-        req.body?.startDate || ""
+        request.body?.startDate || ""
       ).trim();
 
     const endDate =
       String(
-        req.body?.endDate || ""
+        request.body?.endDate || ""
       ).trim();
 
     const reason =
       String(
-        req.body?.reason || ""
+        request.body?.reason || ""
       )
         .trim()
         .slice(0, 500);
 
 
+    // ตรวจประเภทการลา
     if (
-      !allowedTypes.includes(
-        type
-      )
+      !allowedTypes.includes(type)
     ) {
 
-      return res
+      return response
         .status(400)
         .json({
           error:
@@ -1950,6 +1949,7 @@ app.post(
     }
 
 
+    // ตรวจวันที่
     if (
       !/^\d{4}-\d{2}-\d{2}$/
         .test(startDate) ||
@@ -1957,7 +1957,7 @@ app.post(
         .test(endDate)
     ) {
 
-      return res
+      return response
         .status(400)
         .json({
           error:
@@ -1966,11 +1966,9 @@ app.post(
     }
 
 
-    if (
-      endDate < startDate
-    ) {
+    if (endDate < startDate) {
 
-      return res
+      return response
         .status(400)
         .json({
           error:
@@ -1981,7 +1979,7 @@ app.post(
 
     if (!reason) {
 
-      return res
+      return response
         .status(400)
         .json({
           error:
@@ -1996,22 +1994,23 @@ app.post(
     await updateJson(
       "leaves.json",
       [],
+
       leaves => {
 
         leave = {
 
           id:
-            crypto.randomUUID(),
+            createId(),
 
           discordId:
-            req.user.discordId,
+            request.user.discordId,
 
           displayName:
-            req.user.displayName ||
-            req.user.username,
+            request.user.displayName ||
+            request.user.username,
 
           username:
-            req.user.username,
+            request.user.username,
 
           type,
 
@@ -2030,26 +2029,27 @@ app.post(
           reviewedBy:
             null,
 
+          reviewedByName:
+            null,
+
           reviewedAt:
             null,
 
           createdAt:
-            new Date()
-              .toISOString()
+            now()
         };
 
 
-        leaves.unshift(
-          leave
-        );
+        leaves.unshift(leave);
       }
     );
 
 
+    // Audit ในเว็บไซต์
     await audit(
-      req.user.discordId,
+      request.user.discordId,
       "LEAVE_REQUEST",
-      req.user.discordId,
+      request.user.discordId,
       {
         leaveId:
           leave.id,
@@ -2063,7 +2063,102 @@ app.post(
     );
 
 
-    res
+    // Discord Log
+    try {
+
+      await sendDiscordLog({
+
+        title:
+          "📝 มีคำขอลางานใหม่",
+
+        description:
+          `### ${leave.displayName}\n` +
+          `> ส่งคำขอลางานและกำลังรอ Head Admin พิจารณา`,
+
+        fields: [
+
+          {
+            name:
+              "👤 ผู้ยื่นคำขอ",
+
+            value:
+              `**${leave.displayName}**`,
+
+            inline:
+              false
+          },
+
+          {
+            name:
+              "📋 ประเภทการลา",
+
+            value:
+              type === "sick"
+                ? "🤒 ลาป่วย"
+                : type === "personal"
+                ? "💼 ลากิจ"
+                : type === "vacation"
+                ? "🏖️ ลาพักร้อน"
+                : "📝 อื่น ๆ",
+
+            inline:
+              true
+          },
+
+          {
+            name:
+              "📅 วันที่ลา",
+
+            value:
+              `**${startDate}** ถึง **${endDate}**`,
+
+            inline:
+              true
+          },
+
+          {
+            name:
+              "💬 เหตุผล",
+
+            value:
+              reason,
+
+            inline:
+              false
+          },
+
+          {
+            name:
+              "📌 สถานะ",
+
+            value:
+              "🟡 **รอการอนุมัติ**",
+
+            inline:
+              false
+          }
+
+        ],
+
+        color:
+          0xFEE75C,
+
+        thumbnail:
+          getProfileAvatar(
+            request.user
+          )
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Discord LEAVE_REQUEST log error:",
+        error
+      );
+    }
+
+
+    return response
       .status(201)
       .json({
         ok: true,
@@ -2073,12 +2168,16 @@ app.post(
 );
 
 
+// -------------------------
 // Head Admin ดูคำขอลาทั้งหมด
+// -------------------------
+
 app.get(
   "/api/admin/leaves",
   requireUser,
   requireAdmin,
-  async (req, res) => {
+
+  async (request, response) => {
 
     const leaves =
       await readJson(
@@ -2092,58 +2191,52 @@ app.get(
         (a, b) => {
 
           if (
-            a.status ===
-              "pending" &&
-            b.status !==
-              "pending"
+            a.status === "pending" &&
+            b.status !== "pending"
           ) {
             return -1;
           }
 
-
           if (
-            b.status ===
-              "pending" &&
-            a.status !==
-              "pending"
+            b.status === "pending" &&
+            a.status !== "pending"
           ) {
             return 1;
           }
 
-
           return (
-            new Date(
-              b.createdAt
-            ) -
-            new Date(
-              a.createdAt
-            )
+            new Date(b.createdAt) -
+            new Date(a.createdAt)
           );
         }
       );
 
 
-    res.json(sorted);
+    response.json(sorted);
   }
 );
 
 
+// -------------------------
 // Head Admin อนุมัติ / ไม่อนุมัติ
+// -------------------------
+
 app.patch(
   "/api/admin/leaves/:id",
   requireUser,
   requireAdmin,
-  async (req, res) => {
+
+  async (request, response) => {
 
     const status =
       String(
-        req.body?.status || ""
-      );
+        request.body?.status || ""
+      ).trim();
 
 
     const adminNote =
       String(
-        req.body?.adminNote || ""
+        request.body?.adminNote || ""
       )
         .trim()
         .slice(0, 500);
@@ -2156,7 +2249,7 @@ app.patch(
       ].includes(status)
     ) {
 
-      return res
+      return response
         .status(400)
         .json({
           error:
@@ -2171,21 +2264,26 @@ app.patch(
     await updateJson(
       "leaves.json",
       [],
+
       leaves => {
 
         const leave =
           leaves.find(
             item =>
-              String(
-                item.id
-              ) ===
-              String(
-                req.params.id
-              )
+              String(item.id) ===
+              String(request.params.id)
           );
 
 
         if (!leave) {
+          return;
+        }
+
+
+        // ป้องกันการกดซ้ำ
+        if (
+          leave.status !== "pending"
+        ) {
           return;
         }
 
@@ -2197,34 +2295,39 @@ app.patch(
           adminNote;
 
         leave.reviewedBy =
-          req.user.discordId;
+          request.user.discordId;
+
+
+        // ชื่อผู้อนุมัติจากชื่อในเว็บไซต์
+        leave.reviewedByName =
+          request.user.displayName ||
+          request.user.username;
+
 
         leave.reviewedAt =
-          new Date()
-            .toISOString();
+          now();
 
 
         updated =
-          structuredClone(
-            leave
-          );
+          structuredClone(leave);
       }
     );
 
 
     if (!updated) {
 
-      return res
+      return response
         .status(404)
         .json({
           error:
-            "ไม่พบคำขอลางาน"
+            "ไม่พบคำขอ หรือคำขอนี้ถูกดำเนินการแล้ว"
         });
     }
 
 
+    // Audit
     await audit(
-      req.user.discordId,
+      request.user.discordId,
 
       status === "approved"
         ? "LEAVE_APPROVE"
@@ -2236,12 +2339,141 @@ app.patch(
         leaveId:
           updated.id,
 
-        adminNote
+        adminNote,
+
+        reviewedByName:
+          updated.reviewedByName
       }
     );
 
 
-    res.json({
+    // Discord Log
+    try {
+
+      await sendDiscordLog({
+
+        title:
+          status === "approved"
+            ? "✅ อนุมัติคำขอลางาน"
+            : "❌ ไม่อนุมัติคำขอลางาน",
+
+        description:
+          status === "approved"
+            ? `### ${updated.displayName}\n> คำขอลางานได้รับการอนุมัติแล้ว`
+            : `### ${updated.displayName}\n> คำขอลางานไม่ได้รับการอนุมัติ`,
+
+        fields: [
+
+          {
+            name:
+              "👤 ผู้ยื่นคำขอ",
+
+            value:
+              `**${
+                updated.displayName ||
+                updated.username
+              }**`,
+
+            inline:
+              false
+          },
+
+          {
+            name:
+              "📋 ประเภทการลา",
+
+            value:
+              updated.type === "sick"
+                ? "🤒 ลาป่วย"
+                : updated.type === "personal"
+                ? "💼 ลากิจ"
+                : updated.type === "vacation"
+                ? "🏖️ ลาพักร้อน"
+                : "📝 อื่น ๆ",
+
+            inline:
+              true
+          },
+
+          {
+            name:
+              "📅 วันที่ลา",
+
+            value:
+              `**${updated.startDate}** ถึง **${updated.endDate}**`,
+
+            inline:
+              true
+          },
+
+          {
+            name:
+              "💬 เหตุผลการลา",
+
+            value:
+              updated.reason || "-",
+
+            inline:
+              false
+          },
+
+          {
+            name:
+              status === "approved"
+                ? "✅ ผู้อนุมัติ"
+                : "❌ ผู้ไม่อนุมัติ",
+
+            // ใช้ชื่อที่ตั้งในเว็บไซต์
+            // ไม่ใช้ตำแหน่ง Head Admin
+            value:
+              `**${updated.reviewedByName}**`,
+
+            inline:
+              false
+          },
+
+          {
+            name:
+              "📌 ผลการพิจารณา",
+
+            value:
+              status === "approved"
+                ? "🟢 **อนุมัติ**"
+                : "🔴 **ไม่อนุมัติ**",
+
+            inline:
+              true
+          },
+
+          {
+            name:
+              "💬 หมายเหตุ",
+
+            value:
+              updated.adminNote || "-",
+
+            inline:
+              false
+          }
+
+        ],
+
+        color:
+          status === "approved"
+            ? 0x57F287
+            : 0xED4245
+      });
+
+    } catch (error) {
+
+      console.error(
+        "Discord LEAVE_REVIEW log error:",
+        error
+      );
+    }
+
+
+    return response.json({
       ok: true,
       leave: updated
     });
@@ -2277,13 +2509,18 @@ app.get(
         "audit.json",
         []
       );
+    const leaves =
+      await readJson(
+        "leaves.json",
+        []
+      );
 
     const settings =
       await getSettings();
 
     response.json({
       users,
-
+      leaves,
       active:
         shifts.filter(
           shift =>
@@ -3204,7 +3441,6 @@ async function autoClockOut() {
   }
 }
 await initDatabase();
-
 autoClockOut()
   .catch(console.error);
 
