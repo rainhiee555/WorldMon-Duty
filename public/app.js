@@ -5583,19 +5583,20 @@ async function saveUser(id) {
       {
         method: "PATCH",
 
-        body:
-          JSON.stringify({
+body:
+  JSON.stringify({
 
-            displayName,
+    displayName,
 
-            level:
-              levelInput.value,
+    isAdmin:
+      levelInput.value ===
+      "Head Admin",
 
-            enabled:
-              enabledInput.value ===
-              "true"
+    enabled:
+      enabledInput.value ===
+      "true"
 
-          })
+  })
       }
     );
 
