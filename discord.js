@@ -182,18 +182,55 @@ export async function sendDiscordLog({
     );
   }
 }
-export async function sendLeaveDiscordLog(embed) {
+export async function sendLeaveDiscordLog({
+  title,
+  description = "",
+  fields = [],
+  color = 0x5865f2,
+  thumbnail = null
+}) {
+
   const webhookUrl =
     process.env.DISCORD_LEAVE_WEBHOOK_URL;
 
   if (!webhookUrl) {
+
     console.log(
       "DISCORD_LEAVE_WEBHOOK_URL not configured"
     );
+
     return;
   }
 
+
+  const embed = {
+    title,
+    description,
+    fields,
+    color,
+    timestamp:
+      new Date().toISOString(),
+
+    footer: {
+      text:
+        "Duty Management • Leave Log"
+    }
+  };
+
+
+  // Discord ต้องการ thumbnail
+  // ในรูปแบบ { url: "..." }
+  if (thumbnail) {
+
+    embed.thumbnail = {
+      url: thumbnail
+    };
+
+  }
+
+
   try {
+
     const webhookResponse =
       await fetch(
         webhookUrl,
@@ -210,17 +247,15 @@ export async function sendLeaveDiscordLog(embed) {
               "Duty Management • Leave Log",
 
             embeds: [
-              {
-                ...embed,
-                timestamp:
-                  new Date().toISOString()
-              }
+              embed
             ]
           })
         }
       );
 
+
     if (!webhookResponse.ok) {
+
       const text =
         await webhookResponse.text();
 
@@ -229,12 +264,15 @@ export async function sendLeaveDiscordLog(embed) {
         webhookResponse.status,
         text
       );
+
     }
 
   } catch (error) {
+
     console.error(
       "LEAVE WEBHOOK ERROR:",
       error
     );
+
   }
 }
