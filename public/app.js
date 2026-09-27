@@ -2023,6 +2023,22 @@ function beautifulConfirm({
 
 }
 
+async function beautifulAlert({
+  title = "สำเร็จ",
+  message = "",
+  type = "start",
+  confirmText = "ตกลง"
+}) {
+
+  await beautifulConfirm({
+    title,
+    message,
+    type,
+    confirmText
+  });
+}
+
+
 
 // =============================
 // SHIFT
@@ -3289,21 +3305,17 @@ async function submitLeave(event) {
   event.preventDefault();
 
 
+  const type =
+    $("#leaveType").value;
+
   const startDate =
     $("#leaveStartDate").value;
 
   const endDate =
     $("#leaveEndDate").value;
 
-
-  if (endDate < startDate) {
-
-    alert(
-      "วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่ม"
-    );
-
-    return;
-  }
+  const reason =
+    $("#leaveReason").value.trim();
 
 
   try {
@@ -3314,33 +3326,51 @@ async function submitLeave(event) {
         method: "POST",
 
         body: JSON.stringify({
-          type:
-            $("#leaveType").value,
-
+          type,
           startDate,
-
           endDate,
-
-          reason:
-            $("#leaveReason")
-              .value
-              .trim()
+          reason
         })
       }
     );
 
 
-    alert(
-      "ส่งคำขอลางานเรียบร้อยแล้ว"
-    );
+    await beautifulAlert({
+
+      title:
+        "ส่งคำขอลางานสำเร็จ",
+
+      message:
+        "ระบบได้รับคำขอลางานของคุณแล้ว กรุณารอ Head Admin ตรวจสอบ",
+
+      type:
+        "start",
+
+      confirmText:
+        "ตกลง"
+    });
 
 
-    await showLeave();
+    showLeave();
 
 
   } catch (error) {
 
-    alert(error.message);
+    await beautifulAlert({
+
+      title:
+        "ไม่สามารถส่งคำขอลางานได้",
+
+      message:
+        error.message ||
+        "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
+
+      type:
+        "end",
+
+      confirmText:
+        "ตกลง"
+    });
 
   }
 }
@@ -6685,10 +6715,6 @@ async function deleteLeave(id) {
 }
 
 
-// =============================
-// REVIEW LEAVE
-// =============================
-
 async function reviewLeave(
   id,
   status
@@ -6696,13 +6722,9 @@ async function reviewLeave(
 
   const note =
     prompt(
-
       status === "approved"
-
         ? "หมายเหตุการอนุมัติ (เว้นว่างได้)"
-
         : "ระบุเหตุผลที่ไม่อนุมัติ (เว้นว่างได้)"
-
     );
 
 
@@ -6727,11 +6749,26 @@ async function reviewLeave(
     );
 
 
-    alert(
-      status === "approved"
-        ? "อนุมัติการลาเรียบร้อยแล้ว"
-        : "ไม่อนุมัติการลาเรียบร้อยแล้ว"
-    );
+    await beautifulAlert({
+
+      title:
+        status === "approved"
+          ? "อนุมัติการลาแล้ว"
+          : "ไม่อนุมัติการลาแล้ว",
+
+      message:
+        status === "approved"
+          ? "อนุมัติคำขอลางานเรียบร้อยแล้ว"
+          : "ไม่อนุมัติคำขอลางานเรียบร้อยแล้ว",
+
+      type:
+        status === "approved"
+          ? "start"
+          : "end",
+
+      confirmText:
+        "ตกลง"
+    });
 
 
     await showAdmin(
@@ -6741,13 +6778,24 @@ async function reviewLeave(
 
   } catch (error) {
 
-    alert(
-      error.message
-    );
+    await beautifulAlert({
+
+      title:
+        "ดำเนินการไม่สำเร็จ",
+
+      message:
+        error.message ||
+        "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
+
+      type:
+        "end",
+
+      confirmText:
+        "ตกลง"
+    });
 
   }
 }
-
 // =============================
 // SETTINGS
 // =============================
