@@ -19,7 +19,8 @@ import {
   getDiscordUser,
   getGuildMember,
   getAvatarURL,
-  sendDiscordLog
+  sendDiscordLog,
+  sendLeaveDiscordLog
 } from "./discord.js";
 import {
   initDatabase
@@ -2066,7 +2067,7 @@ app.post(
     // Discord Log
     try {
 
-      await sendDiscordLog({
+      await sendLeaveDiscordLog({
 
         title:
           "📝 มีคำขอลางานใหม่",
@@ -2350,7 +2351,7 @@ app.patch(
     // Discord Log
     try {
 
-      await sendDiscordLog({
+      await sendLeaveDiscordLog({
 
         title:
           status === "approved"

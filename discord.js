@@ -182,3 +182,59 @@ export async function sendDiscordLog({
     );
   }
 }
+export async function sendLeaveDiscordLog(embed) {
+  const webhookUrl =
+    process.env.DISCORD_LEAVE_WEBHOOK_URL;
+
+  if (!webhookUrl) {
+    console.log(
+      "DISCORD_LEAVE_WEBHOOK_URL not configured"
+    );
+    return;
+  }
+
+  try {
+    const webhookResponse =
+      await fetch(
+        webhookUrl,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body: JSON.stringify({
+            username:
+              "Duty Management • Leave Log",
+
+            embeds: [
+              {
+                ...embed,
+                timestamp:
+                  new Date().toISOString()
+              }
+            ]
+          })
+        }
+      );
+
+    if (!webhookResponse.ok) {
+      const text =
+        await webhookResponse.text();
+
+      console.error(
+        "LEAVE WEBHOOK ERROR:",
+        webhookResponse.status,
+        text
+      );
+    }
+
+  } catch (error) {
+    console.error(
+      "LEAVE WEBHOOK ERROR:",
+      error
+    );
+  }
+}
