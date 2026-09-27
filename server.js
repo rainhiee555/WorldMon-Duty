@@ -2480,6 +2480,155 @@ app.patch(
     });
   }
 );
+// -------------------------
+// Head Admin ลบคำขอลางาน
+// -------------------------
+
+app.delete(
+  "/api/admin/leaves/:id",
+  requireUser,
+  requireAdmin,
+
+  async (request, response) => {
+
+    let deleted = null;
+
+
+    await updateJson(
+      "leaves.json",
+      [],
+
+      leaves => {
+
+        const index =
+          leaves.findIndex(
+            item =>
+              String(item.id) ===
+              String(request.params.id)
+          );
+
+
+        if (index === -1) {
+          return;
+        }
+
+
+        deleted =
+          structuredClone(
+            leaves[index]
+          );
+
+
+        leaves.splice(
+          index,
+          1
+        );
+      }
+    );
+
+
+    if (!deleted) {
+
+      return response
+        .status(404)
+        .json({
+          error:
+            "ไม่พบคำขอลางาน"
+        });
+    }
+
+
+    // =========================
+    // AUDIT
+    // =========================
+
+    await audit(
+      request.user.discordId,
+      "LEAVE_DELETE",
+      deleted.discordId,
+      {
+        leaveId:
+          deleted.id,
+
+        displayName:
+          deleted.displayName ||
+          deleted.username
+      }
+    );
+
+
+    // =========================
+    // DISCORD LOG
+    // =========================
+
+    try {
+
+      await sendDiscordLog({
+
+        title:
+          "🗑️ ลบคำขอลางาน",
+
+        description:
+          `คำขอลางานของ **${
+            deleted.displayName ||
+            deleted.username ||
+            "ไม่ทราบชื่อ"
+          }** ถูกลบออกจากระบบ`,
+
+        fields: [
+
+          {
+            name:
+              "👤 ผู้ยื่นคำขอ",
+
+            value:
+              `**${
+                deleted.displayName ||
+                deleted.username ||
+                "-"
+              }**`,
+
+            inline:
+              false
+          },
+
+
+          {
+            name:
+              "🗑️ ผู้ลบ",
+
+            value:
+              `**${
+                request.user.displayName ||
+                request.user.username
+              }**`,
+
+            inline:
+              false
+          }
+
+        ],
+
+        color:
+          0xED4245
+      });
+
+
+    } catch (error) {
+
+      console.error(
+        "Discord LEAVE_DELETE log error:",
+        error
+      );
+
+    }
+
+
+    return response.json({
+      ok: true
+    });
+  }
+);
 // =========================
 // ADMIN OVERVIEW
 // =========================

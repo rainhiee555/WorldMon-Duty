@@ -3,7 +3,7 @@ const $ = s => document.querySelector(s);
 let state = null;
 let timer = null;
 let adminData = null;
-
+let adminLeavesData = [];
 let dashboardChartShifts = [];
 let dashboardChartRange = "7";
 
@@ -5929,14 +5929,10 @@ async function forceEnd(id) {
 
 async function adminLeaves() {
 
-  let leaves = [];
-
   try {
 
-    leaves =
-      await api(
-        "/api/admin/leaves"
-      );
+    adminLeavesData =
+      await api("/api/admin/leaves");
 
   } catch (error) {
 
@@ -5949,201 +5945,630 @@ async function adminLeaves() {
     return;
   }
 
+  renderAdminLeaves();
+}
+
+
+function renderAdminLeaves() {
+
+  const leaves =
+    Array.isArray(adminLeavesData)
+      ? adminLeavesData
+      : [];
+
+  const search =
+    String(
+      $("#leaveAdminSearch")?.value || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  const status =
+    $("#leaveAdminStatus")?.value || "all";
+
+  const type =
+    $("#leaveAdminType")?.value || "all";
+
+
+  const filtered =
+    leaves.filter(leave => {
+
+      const haystack = [
+        leave.displayName,
+        leave.username,
+        leave.discordId,
+        leave.reason,
+        leave.adminNote
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch =
+        !search ||
+        haystack.includes(search);
+
+      const matchesStatus =
+        status === "all" ||
+        leave.status === status;
+
+      const matchesType =
+        type === "all" ||
+        leave.type === type;
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesType
+      );
+    });
+
+
+  const total =
+    leaves.length;
+
+  const pending =
+    leaves.filter(
+      item =>
+        item.status === "pending"
+    ).length;
+
+  const approved =
+    leaves.filter(
+      item =>
+        item.status === "approved"
+    ).length;
+
+  const rejected =
+    leaves.filter(
+      item =>
+        item.status === "rejected"
+    ).length;
+
 
   $("#adminBody").innerHTML = `
 
-    <div class="card">
+    <section class="leave-admin-page">
 
-      <div class="card-title-row">
+      <div class="leave-admin-hero">
 
         <div>
 
+          <span class="leave-admin-eyebrow">
+            LEAVE MANAGEMENT
+          </span>
+
           <h2>
-            คำขอลางาน
+            จัดการคำขอลางาน
           </h2>
 
-          <p class="muted">
-            Head Admin สามารถอนุมัติ
-            หรือไม่อนุมัติคำขอลางานได้
+          <p>
+            ตรวจสอบ อนุมัติ และจัดการ
+            คำขอลางานของบุคลากร
           </p>
+
+        </div>
+
+        <div class="leave-admin-hero-icon">
+          🗓️
+        </div>
+
+      </div>
+
+
+      <div class="leave-admin-stats">
+
+        <article class="leave-admin-stat total">
+
+          <span class="leave-admin-stat-icon">
+            ▦
+          </span>
+
+          <div>
+            <small>คำขอทั้งหมด</small>
+            <strong>${total}</strong>
+          </div>
+
+        </article>
+
+
+        <article class="leave-admin-stat pending">
+
+          <span class="leave-admin-stat-icon">
+            ◷
+          </span>
+
+          <div>
+            <small>รออนุมัติ</small>
+            <strong>${pending}</strong>
+          </div>
+
+        </article>
+
+
+        <article class="leave-admin-stat approved">
+
+          <span class="leave-admin-stat-icon">
+            ✓
+          </span>
+
+          <div>
+            <small>อนุมัติแล้ว</small>
+            <strong>${approved}</strong>
+          </div>
+
+        </article>
+
+
+        <article class="leave-admin-stat rejected">
+
+          <span class="leave-admin-stat-icon">
+            ×
+          </span>
+
+          <div>
+            <small>ไม่อนุมัติ</small>
+            <strong>${rejected}</strong>
+          </div>
+
+        </article>
+
+      </div>
+
+
+      <div class="leave-admin-toolbar">
+
+        <div class="leave-admin-search">
+
+          <span>⌕</span>
+
+          <input
+            id="leaveAdminSearch"
+            type="search"
+            placeholder="ค้นหาชื่อ ผู้ใช้ หรือเหตุผล..."
+            value="${esc(search)}"
+            oninput="renderAdminLeaves()"
+          >
+
+        </div>
+
+
+        <select
+          id="leaveAdminStatus"
+          onchange="renderAdminLeaves()"
+        >
+
+          <option
+            value="all"
+            ${
+              status === "all"
+                ? "selected"
+                : ""
+            }
+          >
+            ทุกสถานะ
+          </option>
+
+          <option
+            value="pending"
+            ${
+              status === "pending"
+                ? "selected"
+                : ""
+            }
+          >
+            รออนุมัติ
+          </option>
+
+          <option
+            value="approved"
+            ${
+              status === "approved"
+                ? "selected"
+                : ""
+            }
+          >
+            อนุมัติแล้ว
+          </option>
+
+          <option
+            value="rejected"
+            ${
+              status === "rejected"
+                ? "selected"
+                : ""
+            }
+          >
+            ไม่อนุมัติ
+          </option>
+
+        </select>
+
+
+        <select
+          id="leaveAdminType"
+          onchange="renderAdminLeaves()"
+        >
+
+          <option
+            value="all"
+            ${
+              type === "all"
+                ? "selected"
+                : ""
+            }
+          >
+            ทุกประเภท
+          </option>
+
+          <option
+            value="sick"
+            ${
+              type === "sick"
+                ? "selected"
+                : ""
+            }
+          >
+            ลาป่วย
+          </option>
+
+          <option
+            value="personal"
+            ${
+              type === "personal"
+                ? "selected"
+                : ""
+            }
+          >
+            ลากิจ
+          </option>
+
+          <option
+            value="vacation"
+            ${
+              type === "vacation"
+                ? "selected"
+                : ""
+            }
+          >
+            ลาพักร้อน
+          </option>
+
+          <option
+            value="other"
+            ${
+              type === "other"
+                ? "selected"
+                : ""
+            }
+          >
+            อื่น ๆ
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <div class="leave-admin-result-head">
+
+        <div>
+
+          <strong>
+            รายการคำขอ
+          </strong>
+
+          <span>
+            แสดง ${filtered.length}
+            จาก ${total} รายการ
+          </span>
 
         </div>
 
       </div>
 
 
-      <div class="leave-list">
+      <div class="leave-admin-list">
 
         ${
-          leaves.length
+          filtered.length
 
-            ? leaves.map(
-                leave => `
+            ? filtered
+                .map(leave => {
 
-                  <article
-                    class="leave-item admin-leave-item"
-                  >
+                  const name =
+                    leave.displayName ||
+                    leave.username ||
+                    leave.discordId ||
+                    "ไม่ทราบชื่อ";
 
-                    <div
-                      class="leave-item-top"
+                  const initial =
+                    String(name)
+                      .trim()
+                      .charAt(0)
+                      .toUpperCase() || "?";
+
+
+                  return `
+
+                    <article
+                      class="
+                        leave-admin-card
+                        ${esc(
+                          leave.status ||
+                          "pending"
+                        )}
+                      "
                     >
 
-                      <div>
+                      <div class="leave-admin-card-main">
 
-                        <strong>
-                          ${
-                            esc(
-                              leave.displayName ||
-                              leave.username ||
-                              leave.discordId
-                            )
-                          }
-                        </strong>
 
-                        <div class="muted">
+                        <div class="leave-admin-person">
 
-                          ${
-                            esc(
-                              leaveTypeLabel(
-                                leave.type
-                              )
-                            )
-                          }
+                          <div class="leave-admin-avatar">
+                            ${esc(initial)}
+                          </div>
+
+
+                          <div class="leave-admin-person-copy">
+
+                            <div class="leave-admin-name-row">
+
+                              <strong>
+                                ${esc(name)}
+                              </strong>
+
+                              ${
+                                leaveStatusBadge(
+                                  leave.status
+                                )
+                              }
+
+                            </div>
+
+                            <span>
+                              ${esc(
+                                leave.username ||
+                                leave.discordId ||
+                                ""
+                              )}
+                            </span>
+
+                          </div>
 
                         </div>
+
+
+                        <div class="leave-admin-meta">
+
+                          <div>
+
+                            <small>
+                              ประเภทการลา
+                            </small>
+
+                            <strong>
+                              ${esc(
+                                leaveTypeLabel(
+                                  leave.type
+                                )
+                              )}
+                            </strong>
+
+                          </div>
+
+
+                          <div>
+
+                            <small>
+                              ช่วงวันที่ลา
+                            </small>
+
+                            <strong>
+
+                              ${
+                                leaveDate(
+                                  leave.startDate
+                                )
+                              }
+
+                              <span>→</span>
+
+                              ${
+                                leaveDate(
+                                  leave.endDate
+                                )
+                              }
+
+                            </strong>
+
+                          </div>
+
+
+                          <div>
+
+                            <small>
+                              ส่งคำขอเมื่อ
+                            </small>
+
+                            <strong>
+                              ${dt(
+                                leave.createdAt
+                              )}
+                            </strong>
+
+                          </div>
+
+                        </div>
+
+
+                        <div class="leave-admin-reason">
+
+                          <small>
+                            เหตุผลการลา
+                          </small>
+
+                          <p>
+                            ${esc(
+                              leave.reason || "-"
+                            )}
+                          </p>
+
+                        </div>
+
+
+                        ${
+                          leave.adminNote
+
+                            ? `
+
+                              <div class="leave-admin-note">
+
+                                <strong>
+                                  หมายเหตุจาก Head Admin
+                                </strong>
+
+                                <span>
+                                  ${esc(
+                                    leave.adminNote
+                                  )}
+                                </span>
+
+                              </div>
+
+                            `
+
+                            : ""
+                        }
+
+
+                        ${
+                          leave.status !== "pending"
+
+                            ? `
+
+                              <div class="leave-admin-reviewed">
+
+                                <span>
+
+                                  ดำเนินการโดย
+
+                                  <strong>
+                                    ${esc(
+                                      leave.reviewedByName ||
+                                      "Head Admin"
+                                    )}
+                                  </strong>
+
+                                </span>
+
+                                <span>
+                                  ${dt(
+                                    leave.reviewedAt
+                                  )}
+                                </span>
+
+                              </div>
+
+                            `
+
+                            : ""
+                        }
 
                       </div>
 
 
-                      ${
-                        leaveStatusBadge(
-                          leave.status
-                        )
-                      }
+                      <div class="leave-admin-card-actions">
 
-                    </div>
+                        ${
+                          leave.status === "pending"
 
+                            ? `
 
-                    <div class="leave-period">
-
-                      ${
-                        leaveDate(
-                          leave.startDate
-                        )
-                      }
-
-                      –
-
-                      ${
-                        leaveDate(
-                          leave.endDate
-                        )
-                      }
-
-                    </div>
+                              <button
+                                class="
+                                  leave-action
+                                  approve
+                                "
+                                onclick="
+                                  reviewLeave(
+                                    '${esc(
+                                      leave.id
+                                    )}',
+                                    'approved'
+                                  )
+                                "
+                              >
+                                ✓ อนุมัติ
+                              </button>
 
 
-                    <p>
-                      ${
-                        esc(
-                          leave.reason
-                        )
-                      }
-                    </p>
+                              <button
+                                class="
+                                  leave-action
+                                  reject
+                                "
+                                onclick="
+                                  reviewLeave(
+                                    '${esc(
+                                      leave.id
+                                    )}',
+                                    'rejected'
+                                  )
+                                "
+                              >
+                                ✕ ไม่อนุมัติ
+                              </button>
+
+                            `
+
+                            : ""
+                        }
 
 
-                    ${
-                      leave.adminNote
+                        <button
+                          class="
+                            leave-action
+                            delete
+                          "
+                          onclick="
+                            deleteLeave(
+                              '${esc(
+                                leave.id
+                              )}'
+                            )
+                          "
+                        >
+                          🗑 ลบ
+                        </button>
 
-                        ? `
+                      </div>
 
-                          <div
-                            class="leave-admin-note"
-                          >
+                    </article>
 
-                            <strong>
-                              หมายเหตุ:
-                            </strong>
+                  `;
 
-                            ${
-                              esc(
-                                leave.adminNote
-                              )
-                            }
-
-                          </div>
-
-                        `
-
-                        : ""
-                    }
-
-
-                    ${
-                      leave.status ===
-                      "pending"
-
-                        ? `
-
-                          <div
-                            class="leave-admin-actions"
-                          >
-
-                            <button
-                              class="blue compact"
-                              onclick="
-                                reviewLeave(
-                                  '${esc(leave.id)}',
-                                  'approved'
-                                )
-                              "
-                            >
-                              ✓ อนุมัติ
-                            </button>
-
-
-                            <button
-                              class="red compact"
-                              onclick="
-                                reviewLeave(
-                                  '${esc(leave.id)}',
-                                  'rejected'
-                                )
-                              "
-                            >
-                              ✕ ไม่อนุมัติ
-                            </button>
-
-                          </div>
-
-                        `
-
-                        : `
-
-                          <small class="muted">
-
-                            ดำเนินการเมื่อ
-
-                            ${
-                              dt(
-                                leave.reviewedAt
-                              )
-                            }
-
-                          </small>
-
-                        `
-                    }
-
-                  </article>
-
-                `
-              ).join("")
+                })
+                .join("")
 
             : `
 
-              <div class="leave-empty">
-                ยังไม่มีคำขอลางาน
+              <div class="leave-admin-empty">
+
+                <div>
+                  ⌕
+                </div>
+
+                <strong>
+                  ไม่พบคำขอลางาน
+                </strong>
+
+                <span>
+                  ลองเปลี่ยนคำค้นหา
+                  หรือตัวกรองสถานะ
+                </span>
+
               </div>
 
             `
@@ -6151,9 +6576,83 @@ async function adminLeaves() {
 
       </div>
 
-    </div>
-
+    </section>
   `;
+}
+
+
+// =============================
+// DELETE LEAVE
+// =============================
+
+async function deleteLeave(id) {
+
+  const leave =
+    adminLeavesData.find(
+      item =>
+        String(item.id) ===
+        String(id)
+    );
+
+
+  const name =
+    leave?.displayName ||
+    leave?.username ||
+    "รายการนี้";
+
+
+  const confirmed =
+    await beautifulConfirm({
+
+      title:
+        "ลบคำขอลางาน",
+
+      message:
+        `ต้องการลบคำขอลางานของ ${name} หรือไม่? การลบนี้ไม่สามารถย้อนกลับได้`,
+
+      type:
+        "end",
+
+      confirmText:
+        "ลบคำขอ"
+    });
+
+
+  if (!confirmed) {
+    return;
+  }
+
+
+  try {
+
+    await api(
+      `/api/admin/leaves/${
+        encodeURIComponent(id)
+      }`,
+      {
+        method: "DELETE"
+      }
+    );
+
+
+    adminLeavesData =
+      adminLeavesData.filter(
+        item =>
+          String(item.id) !==
+          String(id)
+      );
+
+
+    renderAdminLeaves();
+
+  } catch (error) {
+
+    alert(
+      error.message ||
+      "ไม่สามารถลบคำขอลางานได้"
+    );
+
+  }
 }
 
 
